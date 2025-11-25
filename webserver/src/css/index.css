@@ -7,3 +7,17 @@ html,body {
 #map {
     height: 100%;
 }
+
+#map canvas {
+    cursor: crosshair;
+}
+
+.card {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
+}
