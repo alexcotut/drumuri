@@ -2,6 +2,7 @@ html,body {
     padding: 0;
     margin: 0;
     height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
 }
 
 #map {
@@ -20,4 +21,61 @@ html,body {
     padding: 12px;
     border-radius: 8px;
     box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
+}
+
+.quick-button {
+    margin-right: 5px;
+    margin-bottom: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quick-button:hover {
+    background: #0056b3;
+    transition: background 0.3s ease;
+}
+
+#edit-box-hideable {
+    display: none;
+}
+
+#edit-box-content {
+    margin-top: 10px;
+}
+
+#edit-box-content .edit-box-line-entry {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    background: #f0f0f0;
+}
+
+#edit-box-content .edit-box-line-entry-ref {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+#edit-box-content .edit-box-line-entry-way {
+    margin-right: 10px;
+}
+
+#edit-box-content .edit-box-line-entry-smoothness {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+dialog {
+    border: none;
+    border-radius: 12px;
 }
