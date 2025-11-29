@@ -1,5 +1,16 @@
 import "./maplibre-gl.js";
-import  {BusyModal} from "./busymodal.js"
+import { BusyModal } from "./busymodal.js"
+
+const colors = [
+    { "state": "very_horrible", "value": "rgba(207, 5, 195, 1)" },
+    { "state": "excellent", "value": "rgba(28, 82, 194, 1)" },
+    { "state": "good", "value": "rgba(8, 134, 71, 1)" },
+    { "state": "intermediate", "value": "rgba(207, 123, 5, 1)" },
+    { "state": "bad", "value": "rgba(207, 63, 5, 1)" },
+    { "state": "impassible", "value": "#000" },
+    { "state": "very_bad", "value": "rgba(207, 63, 5, 1)" },
+    { "state": "horrible", "value": "rgba(207, 5, 195, 1)" }
+];
 
 let map;
 let infoBox;
@@ -18,9 +29,14 @@ async function addLineFeature(feature) {
     if (!feature || feature.type !== 'Feature') return;
     if (customLineFeatures.find(f => f.properties.way === feature.properties.way) !== undefined) return;
     customLineFeatures.push(feature);
-    
+
     const dialog = new BusyModal();
     const wayGeometry = await getWayGeometryFromOverpass(feature.properties.way);
+    if (!wayGeometry) {
+        dialog.dismiss();
+        alert("Error accessing Overpass API. Please retry later.");
+        return;
+    }
     feature.geometry = wayGeometry;
     dialog.dismiss();
 
@@ -69,7 +85,8 @@ window.addEventListener('load', () => {
     document.querySelector('#edit-mode-button').addEventListener('click', () => {
         editMode = !editMode;
         document.querySelector('#edit-box-hideable').style.display = editMode ? 'block' : 'none';
-        document.querySelector('#edit-mode-button').textContent = editMode ? 'Edit Mode' : 'View Mode';
+        document.querySelector('#edit-mode-button').textContent = editMode ? 'Close Edit Mode' : 'Start Edit Mode';
+        if (!editMode) clearLineFeatures();
     });
 
     document.querySelector('#clear-button').addEventListener('click', () => {
@@ -92,7 +109,8 @@ window.addEventListener('load', () => {
         compact: true,
         customAttribution: [
             `<a href="https://maplibre.org/">MapLibre</a>`,
-            `&copy; <a href="https://www.openstreetmap.org/copyright">Openstreetmap</a> contributors`
+            `&copy; <a href="https://www.openstreetmap.org/copyright">Openstreetmap</a> contributors`,
+            `<a href="https://overpass-api.de">Overpass API</a>`
         ]
     }));
 
@@ -139,15 +157,15 @@ function mapClick(e) {
     const features = map.queryRenderedFeatures([
         [e.point.x - 3, e.point.y - 3],
         [e.point.x + 3, e.point.y + 3]
-    ], 
-    { 
-        layers: [
-            'tunnel_motorway_inner',
-            'highway_minor',
-            'highway_major_inner',
-            "highway_motorway_inner"
-        ] 
-    });
+    ],
+        {
+            layers: [
+                'tunnel_motorway_inner',
+                'highway_minor',
+                'highway_major_inner',
+                "highway_motorway_inner"
+            ]
+        });
 
 
     infoBox.innerHTML = '';
@@ -156,48 +174,161 @@ function mapClick(e) {
         if (item !== null) infoBox.appendChild(item);
     });
     if (editMode && features.length == 1) addLineFeature(features[0]);
-    
+
 }
 
 function createListItem(feature) {
     if (feature.properties.ref === undefined) return null;
+    const color = colors.find((col) => col.state == feature.properties.smoothness) || { value: "#aaa" };
     const e = document.createElement('div');
     e.className = 'list-item';
     e.innerHTML = `<span>${feature.properties.ref}</span>
-        <span>${feature.properties.smoothness === undefined ? '--' : feature.properties.smoothness}</span>`;
+        <span style="color: ${color.value}">${feature.properties.smoothness === undefined ? '--' : feature.properties.smoothness}</span>`;
     return e;
 }
 
 async function getWayGeometryFromOverpass(wayId) {
-  const query = `
+    const query = `
     [out:json];
     way(${wayId});
     (._;>;);
     out geom;
   `;
 
-  const url = "https://overpass-api.de/api/interpreter";
+    const url = "https://overpass-api.de/api/interpreter";
 
-  const response = await fetch(url, {
-    method: "POST",
-    body: query
-  });
+    let response;
+    try {
+        response = await fetch(url, {
+            method: "POST",
+            body: query
+        });
+        if (!response.ok) return null;
+    } catch (e) {
+        return null;
+    }
 
-  const json = await response.json();
+    const json = await response.json();
 
-  // Geometry is directly in json.elements
-  const way = json.elements.find(el => el.type === "way");
+    // Geometry is directly in json.elements
+    const way = json.elements.find(el => el.type === "way");
 
-  return wayToGeoJSON(way.geometry); 
+    return wayToGeoJSON(way.geometry);
 }
 
 function wayToGeoJSON(way) {
-  return {
-    type: "LineString",
-    coordinates: way.map(p => [p.lon, p.lat])
-  };
+    return {
+        type: "LineString",
+        coordinates: way.map(p => [p.lon, p.lat])
+    };
 }
 
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
+function saveLineFeatures() {
+    const dialog = document.createElement('dialog');
+    const changesInput = document.querySelector('#edit-box-content');
+    const propertiesOnly = customLineFeatures.map((feature, idx) => {
+        return { feature: feature.properties, smoothness: changesInput.children[idx].children[2].value };
+    });
+    const jsonString = JSON.stringify(propertiesOnly, null, 2);
+
+    dialog.innerHTML = `
+        <div style="display: flex; flex-direction: column; padding: 20px; min-width: 500px; max-width: 800px; max-height: 80vh;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 1.2em;">Custom Line Features JSON</h2>
+                <button id="close-json-modal" style="
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 5px 15px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">Close</button>
+            </div>
+            <div style="
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 5px;
+                padding: 15px;
+                overflow: auto;
+                flex: 1;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                max-height: 60vh;
+            " id="json-content">${escapeHtml(jsonString)}</div>
+            <button id="copy-json-button" style="
+                margin-top: 15px;
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: bold;
+            ">Copy changes to clipboard</button>
+        </div>
+    `;
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    // Close button handler
+    dialog.querySelector('#close-json-modal').addEventListener('click', () => {
+        dialog.close();
+        document.body.removeChild(dialog);
+    });
+
+    // Copy button handler
+    dialog.querySelector('#copy-json-button').addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(jsonString);
+            const copyButton = dialog.querySelector('#copy-json-button');
+            const originalText = copyButton.textContent;
+            copyButton.textContent = 'Copied!';
+            copyButton.style.background = '#28a745';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = jsonString;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const copyButton = dialog.querySelector('#copy-json-button');
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                }, 2000);
+            } catch (fallbackErr) {
+                console.error('Fallback copy failed:', fallbackErr);
+            }
+            document.body.removeChild(textArea);
+        }
+    });
+
+    // Close on outside click
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) {
+            dialog.close();
+            document.body.removeChild(dialog);
+        }
+    });
+}
 
