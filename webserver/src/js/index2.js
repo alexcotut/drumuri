@@ -234,48 +234,22 @@ function saveLineFeatures() {
     const dialog = document.createElement('dialog');
     const changesInput = document.querySelector('#edit-box-content');
     const propertiesOnly = customLineFeatures.map((feature, idx) => {
-        return { feature: feature.properties, smoothness: changesInput.children[idx].children[2].value };
+        return {
+            id: feature.properties.way,
+            oldSmoothness: feature.properties.smoothness,
+            smoothness: changesInput.children[idx].children[2].value
+        };
     });
     const jsonString = JSON.stringify(propertiesOnly, null, 2);
 
     dialog.innerHTML = `
         <div style="display: flex; flex-direction: column; padding: 20px; min-width: 500px; max-width: 800px; max-height: 80vh;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="margin: 0; font-size: 1.2em;">Custom Line Features JSON</h2>
-                <button id="close-json-modal" style="
-                    background: #dc3545;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    padding: 5px 15px;
-                    cursor: pointer;
-                    font-size: 14px;
-                ">Close</button>
+                <h2 style="margin: 0; font-size: 1.2em;">Modified data</h2>
+                <button id="close-json-modal" class="btn red">Close</button>
             </div>
-            <div style="
-                background: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 5px;
-                padding: 15px;
-                overflow: auto;
-                flex: 1;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                max-height: 60vh;
-            " id="json-content">${escapeHtml(jsonString)}</div>
-            <button id="copy-json-button" style="
-                margin-top: 15px;
-                background: #28a745;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: bold;
-            ">Copy changes to clipboard</button>
+            <pre class="output" id="json-content">${escapeHtml(jsonString)}</pre>
+            <button class="bigbtn" id="copy-json-button">Copy changes to clipboard</button>
         </div>
     `;
 
